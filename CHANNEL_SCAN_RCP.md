@@ -120,6 +120,16 @@ To run these without a password prompt, create
 
 ## Build and flash
 
+Following the Simplicity Studio 6 `.gitignore` recommendations, the repository
+doesn't track generated files:
+- `autogen/`
+- the copied `simplicity_sdk_2026.6.2/`
+- the generated CMake files (`*.cmake`, `CMakePresets.json`)
+
+After cloning, open the project in Simplicity Studio 6 (or run `slc generate`
+on `bt_rcp_freertos.slcp` with SDK 2026.6.2 installed) to regenerate them.
+Then build:
+
 ```sh
 cd bt_rcp_freertos_cmake
 NINJA_EXE_PATH=$(which ninja) cmake --preset project   # SDK-bundled ninja fails on this Mac

@@ -1,0 +1,4 @@
+# Host tools for the channel scan RCP. Python 3.8 or newer.
+pyserial>=3.5
+# curses ships with Python on Linux and macOS; Windows needs this package.
+windows-curses>=2.3; sys_platform == "win32"
