@@ -29,10 +29,13 @@
  ******************************************************************************/
 #include "sl_main_init.h"
 #include "app.h"
+#include "channel_scan.h"
 
 // Application Init.
 void app_init(void)
 {
+  // Channel scan task + vendor HCI commands 0xFF00-0xFF03 (see channel_scan.h).
+  channel_scan_init();
   /////////////////////////////////////////////////////////////////////////////
   // Put your additional application init code here!                         //
   // This is called once during start-up.                                    //

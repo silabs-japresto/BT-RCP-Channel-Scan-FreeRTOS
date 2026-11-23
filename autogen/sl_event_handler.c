@@ -3,12 +3,13 @@
 #include "sl_board_init.h"
 #include "sl_clock_manager.h"
 #include "sl_rail_util_compatible_pa.h"
+#include "sl_rail_util_init.h"
+#include "btl_interface.h"
 #include "sl_board_control.h"
 #include "sl_btctrl_rtos.h"
 #include "sl_dma_manager_instances.h"
 #include "app.h"
 #include "sl_btctrl_linklayer.h"
-#include "sl_debug_swo.h"
 #include "sl_gpio.h"
 #include "sl_mbedtls.h"
 #include "sl_uartdrv_instances.h"
@@ -18,7 +19,6 @@
 #include "sli_protocol_crypto.h"
 #include "sli_crypto.h"
 #include "cmsis_os2.h"
-#include "sl_cos.h"
 
 void sli_driver_permanent_allocation(void)
 {
@@ -41,6 +41,7 @@ void sl_platform_init(void)
   sl_board_preinit();
   sl_clock_manager_runtime_init();
   sl_board_init();
+  bootloader_init();
   sl_dma_manager_instances_init();
 }
 
@@ -56,10 +57,8 @@ void sl_kernel_start(void)
 
 void sl_driver_init(void)
 {
-  sl_debug_swo_init();
   sl_gpio_init();
   sl_uartdrv_init_instances();
-  sl_cos_send_config();
 }
 
 void sl_service_init(void)
@@ -76,6 +75,7 @@ void sl_service_init(void)
 void sl_stack_init(void)
 {
   sl_rail_util_pa_init();
+  sl_rail_util_init();
   sl_btctrl_rtos_init();
   sl_btctrl_init();
 }

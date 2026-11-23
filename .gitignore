@@ -12,3 +12,4 @@ bt_rcp_freertos_cmake/autogen_toolchain.cmake
 __pycache__/
 *.pyc
 .venv/
+.claude/settings.local.json
