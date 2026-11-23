@@ -136,6 +136,61 @@ Project setup in the `.slcp` file:
 - `SL_RAIL_UTIL_INIT_PROTOCOL_INST0_DEFAULT = SL_RAIL_UTIL_PROTOCOL_BLE_1MBPS`.
 - The VCOM flow-control setting. It's off because the BRD2601B has no RTS line.
 
+### RAIL APIs used
+
+The scan makes only a handful of RAIL calls, all on its own inst0 handle. The
+Bluetooth controller's handle is never touched. Details of each call are in the
+[RAIL API reference](https://docs.silabs.com/rail/latest/rail-api/).
+
+| Step | API | Where | What it does |
+|---|---|---|---|
+| Get the handle | `sl_rail_util_get_handle(SL_RAIL_UTIL_HANDLE_INST0)` | Scan task start | Returns the handle that `sl_rail_util_init` (inst0) created at boot with the BLE 1 Mbps PHY. RAIL channel *k* is BLE RF channel *k*. |
+| Enable events | `sl_rail_config_events(h, SL_RAIL_EVENTS_ALL, SL_RAIL_EVENT_RSSI_AVERAGE_DONE \| SL_RAIL_EVENT_SCHEDULER_STATUS)` | Scan task start, once | Turns on only the two events the scan needs. The event options in `sl_rail_util_init_inst0_config.h` stay at 0. |
+| Start a sample | `sl_rail_start_average_rssi(h, channel, averaging_us, &scheduler_info)` | `measure_channel()`, once per channel per pass | Asks the RAIL scheduler for the radio, tunes to the channel and averages RSSI for `averaging_us` without transmitting. |
+| Get notified | `sl_rail_util_on_event(h, events)`, interrupt context | Callback implemented in `channel_scan.c` | `RSSI_AVERAGE_DONE` means the average is ready. `SCHEDULER_STATUS` means the scheduler preempted or refused the sample. Both end the sample. |
+| Read the value | `sl_rail_get_average_rssi(h)` | Inside the callback | Returns the average in quarter-dBm (`int16_t`), or `SL_RAIL_RSSI_INVALID`. |
+| Release the radio | `sl_rail_yield_radio(h)` | Callback, and the timeout path | Ends the scheduled operation so Bluetooth or the next sample can use the radio. |
+| Abort on timeout | `sl_rail_idle(h, SL_RAIL_IDLE_ABORT, true)` | `measure_channel()`, after 50 ms with no event | Cancels an operation that never finished, then yields the radio. |
+
+**Scheduler parameters.** `sl_rail_start_average_rssi()` takes these
+`sl_rail_scheduler_info_t` values:
+
+| Field | Value | Effect |
+|---|---|---|
+| `priority` | 250 (`CHANNEL_SCAN_RAIL_PRIORITY`) | Numerically above every Bluetooth controller priority (lower number = higher priority), so Bluetooth always preempts the scan |
+| `slip_time` | 20000 µs (`CHANNEL_SCAN_SLIP_TIME_US`) | How long the sample may wait for the radio before the scheduler gives up |
+| `transaction_time` | `averaging_us` | How long the sample holds the radio once it starts |
+
+**One sample, step by step:**
+
+1. The scan task increments a sequence number, clears its pending task
+   notification and calls `sl_rail_start_average_rssi()`. If the call fails,
+   the task waits one tick and the sample is dropped.
+2. The RAIL scheduler runs the average when the radio is free. Bluetooth
+   activity can delay it by up to the slip time, or preempt it.
+3. `sl_rail_util_on_event()` runs in interrupt context. On `RSSI_AVERAGE_DONE`
+   it reads `sl_rail_get_average_rssi()`. Then, for either event, it calls
+   `sl_rail_yield_radio()`. It packs the value, a valid flag and the sequence
+   number into one word and sends it to the scan task with
+   `xTaskNotifyFromISR()`.
+4. The task waits up to 50 ms for a notification whose sequence number matches
+   the sample. This throws away late results from an earlier sample. On
+   timeout it calls `sl_rail_idle(…, SL_RAIL_IDLE_ABORT, …)` and
+   `sl_rail_yield_radio()`, and drops the sample.
+5. A valid sample updates that channel's running min, max and sum, all in
+   quarter-dBm. If the value is above `busy_threshold_dbm × 4`, the channel's
+   busy count goes up.
+
+**Units.** RAIL reports RSSI in quarter-dBm. The scan keeps everything in
+quarter-dBm and converts to whole dBm (`int8_t`) only when it publishes a
+report. A channel that got no valid samples reports `SL_RAIL_RSSI_INVALID_DBM`
+in its dBm fields.
+
+**Why a multiprotocol RAIL library.** `rail_lib_multiprotocol` allows more than
+one RAIL handle on the radio. The RAIL scheduler then arbitrates between them
+by priority. Without it, the scan would need the Bluetooth controller's own
+handle and couldn't run while Bluetooth is active.
+
 ## Command reference
 
 All multi-byte fields are little endian. Every response starts with the HCI
