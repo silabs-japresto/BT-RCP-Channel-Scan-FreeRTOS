@@ -11,9 +11,12 @@ You need Python 3.8 or newer.
 
 ```sh
 cd tools
-python3 -m venv .venv && . .venv/bin/activate    # optional
+python3 -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt
 ```
+
+Activate the venv (`. .venv/bin/activate` in `tools/`) in each new shell before
+running the scripts. On Windows, use `.venv\Scripts\activate`.
 
 The only third-party package is `pyserial`. On Windows, `windows-curses` is
 also installed for the TUI.

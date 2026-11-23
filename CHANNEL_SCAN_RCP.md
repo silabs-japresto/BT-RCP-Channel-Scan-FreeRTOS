@@ -23,10 +23,25 @@ covers the host tools, building, flashing and test status.
 | 0xFF03 | Read Report | first_channel u8, count u8 | report_seq u16, passes u16, first u8, count u8, count × {min i8, avg i8, max i8, busy% u8} |
 | 0xFF04 | Enter Bootloader | — | — (reboots into the UART XMODEM bootloader ~50 ms later) |
 
+## Host tools setup
+
+The host tools are in `tools/` and need Python 3.8 or newer. Set them up in a
+virtual environment from `tools/requirements.txt`:
+
+```sh
+cd tools
+python3 -m venv .venv && . .venv/bin/activate
+pip install -r requirements.txt
+cd ..
+```
+
+Activate the venv (`. tools/.venv/bin/activate`) in each new shell before
+running the scripts. [tools/README.md](tools/README.md) has the full option
+reference for each script.
+
 ## Host script
 
 ```sh
-pip install pyserial
 python3 tools/rcp_channel_scan.py -p /dev/tty.usbmodemXXXX info
 python3 tools/rcp_channel_scan.py -p /dev/tty.usbmodemXXXX watch            # table per report
 python3 tools/rcp_channel_scan.py -p /dev/tty.usbmodemXXXX watch --chscan   # one CSV line per report
@@ -54,7 +69,8 @@ sends Get Info.
 ## Terminal UI
 
 `tools/rcp_channel_scan_tui.py` is a curses viewer in the style of btop. It
-needs only Python 3 and pyserial, and it works over SSH at 80×24 or larger,
+uses the same venv as the other tools (see
+[Host tools setup](#host-tools-setup)), and it works over SSH at 80×24 or larger,
 with 256 colors when the terminal supports them. It shows:
 - the energy min–max band and average, with the busy-threshold line
 - busy %
